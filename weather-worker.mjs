@@ -1,6 +1,4 @@
-import pkg from "firebase-admin";
-const { initializeApp, credential } = pkg;
-
+import admin from "firebase-admin";
 import nodemailer from "nodemailer";
 import fetch from "node-fetch";
 
@@ -9,12 +7,8 @@ const gmailUser = process.env.GMAIL_USER;
 const gmailPassword = process.env.GMAIL_APP_PASSWORD;
 const weatherApiKey = process.env.WEATHER_API_KEY;
 
-// Debug logs to verify GitHub Actions environment variables
-console.log("Secret check - Length:", serviceAccountJson ? serviceAccountJson.length : "UNDEFINED");
-console.log("Secret check - Starts with:", serviceAccountJson ? serviceAccountJson.substring(0, 15) : "N/A");
-
 if (!serviceAccountJson) {
-  console.error("Error: FIREBASE_SERVICE_ACCOUNT secret is missing from GitHub Secrets!");
+  console.error("Error: FIREBASE_SERVICE_ACCOUNT secret is missing!");
   process.exit(1);
 }
 
@@ -26,16 +20,13 @@ try {
   process.exit(1);
 }
 
-// Initialize Firebase Admin securely
-initializeApp({
-  credential: credential.cert(serviceAccount),
+// Initialize using the default admin namespace credential method
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
 });
 
-import { getFirestore } from "firebase-admin/firestore";
-import { getAuth } from "firebase-admin/auth";
-
-const db = getFirestore();
-const auth = getAuth();
+const db = admin.firestore();
+const auth = admin.auth();
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
