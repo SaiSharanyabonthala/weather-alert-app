@@ -7,8 +7,22 @@ const gmailUser = process.env.GMAIL_USER;
 const gmailPassword = process.env.GMAIL_APP_PASSWORD;
 const weatherApiKey = process.env.WEATHER_API_KEY;
 
+if (!serviceAccountJson) {
+  console.error("Error: FIREBASE_SERVICE_ACCOUNT secret is missing!");
+  process.exit(1);
+}
+
+// Parse safely (handles both raw JSON strings and escaped strings)
+let serviceAccount;
+try {
+  serviceAccount = JSON.parse(serviceAccountJson);
+} catch (e) {
+  console.error("Error parsing FIREBASE_SERVICE_ACCOUNT JSON:", e.message);
+  process.exit(1);
+}
+
 admin.initializeApp({
-  credential: admin.credential.cert(JSON.parse(serviceAccountJson)),
+  credential: admin.credential.cert(serviceAccount),
 });
 
 const db = admin.firestore();
