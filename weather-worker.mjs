@@ -1,4 +1,6 @@
-import admin from "firebase-admin";
+import pkg from "firebase-admin";
+const { initializeApp, credential } = pkg;
+
 import nodemailer from "nodemailer";
 import fetch from "node-fetch";
 
@@ -12,7 +14,6 @@ if (!serviceAccountJson) {
   process.exit(1);
 }
 
-// Parse safely (handles both raw JSON strings and escaped strings)
 let serviceAccount;
 try {
   serviceAccount = JSON.parse(serviceAccountJson);
@@ -21,11 +22,16 @@ try {
   process.exit(1);
 }
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+initializeApp({
+  credential: credential.cert(serviceAccount),
 });
 
-const db = admin.firestore();
+import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
+
+const db = getFirestore();
+const auth = getAuth();
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: { user: gmailUser, pass: gmailPassword },
@@ -45,7 +51,7 @@ async function checkWeatherAlerts() {
       const condition = data.weather[0].description;
 
       if (temp >= (loc.maxTempThreshold || 40)) {
-        const user = await admin.auth().getUser(loc.userId);
+        const user = await auth.getUser(loc.userId);
         if (user.email) {
           await transporter.sendMail({
             from: gmailUser,
