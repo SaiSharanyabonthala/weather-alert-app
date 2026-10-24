@@ -17,11 +17,9 @@ jobs:
 
       - name: Install Dependencies
         run: npm install
-        working-directory: ./weather-alert-app
 
       - name: Execute MJS Worker
         run: node weather-worker.mjs
-        working-directory: ./weather-alert-app
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
