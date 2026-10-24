@@ -9,8 +9,12 @@ const gmailUser = process.env.GMAIL_USER;
 const gmailPassword = process.env.GMAIL_APP_PASSWORD;
 const weatherApiKey = process.env.WEATHER_API_KEY;
 
+// Debug logs to verify GitHub Actions environment variables
+console.log("Secret check - Length:", serviceAccountJson ? serviceAccountJson.length : "UNDEFINED");
+console.log("Secret check - Starts with:", serviceAccountJson ? serviceAccountJson.substring(0, 15) : "N/A");
+
 if (!serviceAccountJson) {
-  console.error("Error: FIREBASE_SERVICE_ACCOUNT secret is missing!");
+  console.error("Error: FIREBASE_SERVICE_ACCOUNT secret is missing from GitHub Secrets!");
   process.exit(1);
 }
 
@@ -22,6 +26,7 @@ try {
   process.exit(1);
 }
 
+// Initialize Firebase Admin securely
 initializeApp({
   credential: credential.cert(serviceAccount),
 });
@@ -39,6 +44,12 @@ const transporter = nodemailer.createTransport({
 
 async function checkWeatherAlerts() {
   const snapshot = await db.collection("watched_locations").get();
+  
+  if (snapshot.empty) {
+    console.log("No watched locations found in Firestore.");
+    return;
+  }
+
   for (const docSnap of snapshot.docs) {
     const loc = docSnap.data();
     const url = `https://api.openweathermap.org/data/2.5/weather?q=${loc.cityName}&appid=${weatherApiKey}&units=metric`;
@@ -62,11 +73,18 @@ async function checkWeatherAlerts() {
           console.log(`Alert sent to ${user.email} for ${loc.cityName}`);
         }
       }
+    } else {
+      console.log(`Failed to fetch weather for ${loc.cityName}:`, data.message);
     }
   }
 }
 
-checkWeatherAlerts().then(() => process.exit(0)).catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+checkWeatherAlerts()
+  .then(() => {
+    console.log("Weather check completed successfully.");
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error("Error running weather worker:", err);
+    process.exit(1);
+  });
