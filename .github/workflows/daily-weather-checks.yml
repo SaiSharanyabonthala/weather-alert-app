@@ -1,0 +1,29 @@
+name: Daily Weather Check & Alerts
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *" # Runs daily at 6:00 AM UTC
+
+jobs:
+  run-weather-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run weather check script
+        run: node weather-worker.js
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}

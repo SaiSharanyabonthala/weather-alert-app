@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cloud-Based Weather Map & Alert System</title>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #map { height: 500px; width: 100%; margin-top: 20px; }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Cloud-Based Weather Map & Alert System</h1>
+  
+  <div id="auth-section">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button id="login-btn">Login</button>
+    <button id="signup-btn">Sign Up</button>
+    <button id="logout-btn" style="display:none;">Logout</button>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <h3>Welcome, <span id="user-display"></span></h3>
+    <input type="text" id="city-input" placeholder="Enter City Name">
+    <input type="number" id="temp-threshold" placeholder="Max Temp Alert Threshold (°C)" value="40">
+    <button id="save-location-btn">Save Location & Monitor</button>
+  </div>
+
+  <!-- Interactive Map Container -->
+  <div id="map"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
