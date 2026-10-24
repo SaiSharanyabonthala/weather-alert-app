@@ -22,10 +22,10 @@ async function checkWeatherAlerts() {
   for (const docSnap of snapshot.docs) {
     const loc = docSnap.data();
     const url = `https://api.openweathermap.org/data/2.5/weather?q=${loc.cityName}&appid=${weatherApiKey}&units=metric`;
-    
+
     const response = await fetch(url);
     const data = await response.json();
-    
+
     if (data.cod === 200) {
       const temp = data.main.temp;
       const condition = data.weather[0].description;
@@ -33,7 +33,7 @@ async function checkWeatherAlerts() {
       if (temp >= (loc.maxTempThreshold || 40)) {
         const user = await admin.auth().getUser(loc.userId);
         if (user.email) {
-          await transporter.sendNavMail || await transporter.sendMail({
+          await transporter.sendMail({
             from: gmailUser,
             to: user.email,
             subject: `Weather Alert: High Temperature in ${loc.cityName}`,

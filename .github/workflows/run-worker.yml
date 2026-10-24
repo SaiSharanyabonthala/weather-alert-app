@@ -1,0 +1,29 @@
+name: Run Weather Worker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Dependencies
+        run: npm install
+        working-directory: ./weather-alert-app
+
+      - name: Execute MJS Worker
+        run: node weather-worker.mjs
+        working-directory: ./weather-alert-app
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}
