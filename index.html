@@ -2,20 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cloud-Based Weather Map & Alert System</title>
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    #map { height: 500px; width: 100%; margin-top: 20px; }
     body { font-family: Arial, sans-serif; margin: 20px; }
+    #map { height: 500px; width: 100%; margin-top: 20px; }
+    input, button { padding: 6px 10px; margin: 2px 0; }
+    #status { margin-top: 8px; min-height: 1.2em; }
+    #location-list li { margin: 4px 0; }
   </style>
 </head>
 <body>
   <h1>Cloud-Based Weather Map & Alert System</h1>
-  
+
   <div id="auth-section">
     <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
+    <input type="password" id="password" placeholder="Password (min 6 chars)">
     <button id="login-btn">Login</button>
     <button id="signup-btn">Sign Up</button>
     <button id="logout-btn" style="display:none;">Logout</button>
@@ -26,12 +29,14 @@
     <input type="text" id="city-input" placeholder="Enter City Name">
     <input type="number" id="temp-threshold" placeholder="Max Temp Alert Threshold (°C)" value="40">
     <button id="save-location-btn">Save Location & Monitor</button>
+    <h4>Your monitored locations</h4>
+    <ul id="location-list"></ul>
   </div>
 
-  <!-- Interactive Map Container -->
+  <div id="status" role="status"></div>
+
   <div id="map"></div>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="app.js"></script>
 </body>

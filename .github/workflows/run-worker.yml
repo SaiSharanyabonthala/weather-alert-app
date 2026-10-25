@@ -3,6 +3,9 @@ name: Run Weather Worker
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   run-script:
     runs-on: ubuntu-latest
@@ -14,11 +17,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Execute MJS Worker
+      - name: Execute Weather Worker
         run: node weather-worker.mjs
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}

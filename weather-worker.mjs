@@ -1,81 +1,140 @@
-import admin from "firebase-admin";
+import { initializeApp, cert } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 import nodemailer from "nodemailer";
-import fetch from "node-fetch";
 
-const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
-const gmailUser = process.env.GMAIL_USER;
-const gmailPassword = process.env.GMAIL_APP_PASSWORD;
-const weatherApiKey = process.env.WEATHER_API_KEY;
-
-if (!serviceAccountJson) {
-  console.error("Error: FIREBASE_SERVICE_ACCOUNT secret is missing!");
-  process.exit(1);
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
 }
 
-let serviceAccount;
-try {
-  serviceAccount = JSON.parse(serviceAccountJson);
-} catch (e) {
-  console.error("Error parsing FIREBASE_SERVICE_ACCOUNT JSON:", e.message);
-  process.exit(1);
-}
+async function main() {
+  const serviceAccountJson = requireEnv("FIREBASE_SERVICE_ACCOUNT");
+  const gmailUser = requireEnv("GMAIL_USER");
+  const gmailPassword = requireEnv("GMAIL_APP_PASSWORD");
+  const weatherApiKey = requireEnv("WEATHER_API_KEY");
 
-// Initialize using the default admin namespace credential method
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+  let serviceAccount;
 
-const db = admin.firestore();
-const auth = admin.auth();
+  try {
+    serviceAccount = JSON.parse(serviceAccountJson);
+  } catch {
+    throw new Error(
+      "FIREBASE_SERVICE_ACCOUNT must contain valid service account JSON."
+    );
+  }
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: { user: gmailUser, pass: gmailPassword },
-});
+  const app = initializeApp({
+    credential: cert(serviceAccount),
+  });
 
-async function checkWeatherAlerts() {
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: gmailUser,
+      pass: gmailPassword,
+    },
+  });
+
+  await transporter.verify();
+  console.log("Email service connection verified.");
+
   const snapshot = await db.collection("watched_locations").get();
-  
+
   if (snapshot.empty) {
     console.log("No watched locations found in Firestore.");
     return;
   }
 
+  let alertsSent = 0;
+  let locationsChecked = 0;
+  let locationsFailed = 0;
+
   for (const docSnap of snapshot.docs) {
     const loc = docSnap.data();
-    const url = `https://api.openweathermap.org/data/2.5/weather?q=${loc.cityName}&appid=${weatherApiKey}&units=metric`;
 
-    const response = await fetch(url);
-    const data = await response.json();
+    if (
+      !loc.cityName ||
+      !loc.userId ||
+      !Number.isFinite(Number(loc.maxTempThreshold))
+    ) {
+      console.error(`Skipping invalid location document: ${docSnap.id}`);
+      locationsFailed++;
+      continue;
+    }
 
-    if (data.cod === 200) {
-      const temp = data.main.temp;
-      const condition = data.weather[0].description;
+    try {
+      const city = encodeURIComponent(loc.cityName);
+      const url =
+        `https://api.openweathermap.org/data/2.5/weather` +
+        `?q=${city}&appid=${weatherApiKey}&units=metric`;
 
-      if (temp >= (loc.maxTempThreshold || 40)) {
-        const user = await auth.getUser(loc.userId);
-        if (user.email) {
-          await transporter.sendMail({
-            from: gmailUser,
-            to: user.email,
-            subject: `Weather Alert: High Temperature in ${loc.cityName}`,
-            text: `Warning! Current temperature in ${loc.cityName} is ${temp}°C (${condition}). Please take precautions.`
-          });
-          console.log(`Alert sent to ${user.email} for ${loc.cityName}`);
-        }
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (!response.ok || Number(data.cod) !== 200) {
+        throw new Error(
+          data.message || `Weather API returned HTTP ${response.status}`
+        );
       }
-    } else {
-      console.log(`Failed to fetch weather for ${loc.cityName}:`, data.message);
+
+      locationsChecked++;
+
+      const temperature = data.main.temp;
+      const condition = data.weather?.[0]?.description ?? "Unknown";
+      const threshold = Number(loc.maxTempThreshold);
+
+      console.log(
+        `${loc.cityName}: ${temperature}°C; alert threshold: ${threshold}°C`
+      );
+
+      if (temperature < threshold) {
+        continue;
+      }
+
+      const user = await auth.getUser(loc.userId);
+
+      if (!user.email) {
+        console.warn(`No email address for Firebase user ${loc.userId}`);
+        continue;
+      }
+
+      await transporter.sendMail({
+        from: gmailUser,
+        to: user.email,
+        subject: `Weather Alert: High Temperature in ${loc.cityName}`,
+        text:
+          `Warning! The current temperature in ${loc.cityName} is ` +
+          `${temperature}°C (${condition}). Your configured threshold is ` +
+          `${threshold}°C. Please take precautions.`,
+      });
+
+      alertsSent++;
+      console.log(`Alert email sent for ${loc.cityName}.`);
+    } catch (error) {
+      locationsFailed++;
+      console.error(
+        `Failed to process ${loc.cityName || docSnap.id}:`,
+        error.message
+      );
     }
   }
+
+  console.log("Weather check completed.", {
+    locationsFound: snapshot.size,
+    locationsChecked,
+    locationsFailed,
+    alertsSent,
+  });
 }
 
-checkWeatherAlerts()
-  .then(() => {
-    console.log("Weather check completed successfully.");
-    process.exit(0);
-  })
-  .catch((err) => {
-    console.error("Error running weather worker:", err);
-    process.exit(1);
-  });
+main().catch((error) => {
+  console.error("Weather worker failed:", error.message);
+  process.exitCode = 1;
+});
